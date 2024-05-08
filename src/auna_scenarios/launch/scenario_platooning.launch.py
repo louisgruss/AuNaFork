@@ -14,10 +14,16 @@ def include_launch_description(context: LaunchContext):
     # Package Directories
     scenario_pkg_dir = get_package_share_directory('auna_scenarios')
     cacc_pkg_dir = get_package_share_directory('auna_cacc')
+    odom_pkg_dir = get_package_share_directory('odom')    
+    imu_pkg_dir = get_package_share_directory('imu') 
+    ekf_pkg_dir = get_package_share_directory('ekf')
 
     # Paths to folders and files
     scenario_launch_file_dir = os.path.join(scenario_pkg_dir, 'launch')
     cacc_launch_file_dir = os.path.join(cacc_pkg_dir, 'launch')
+    odom_launch_file_dir = os.path.join(odom_pkg_dir, 'launch')
+    imu_launch_file_dir = os.path.join(imu_pkg_dir, 'launch')    
+    ekf_launch_file_dir = os.path.join(ekf_pkg_dir, 'launch')
 
     # Launch Argument Configurations
     robot_number = LaunchConfiguration('robot_number', default='2')
@@ -46,6 +52,33 @@ def include_launch_description(context: LaunchContext):
         )
     )
 
+    launch_description_content.append(
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(os.path.join(odom_launch_file_dir, 'odom_node.launch.py')),
+            launch_arguments={
+                'robot_number': robot_number
+            }.items(),
+        )
+    )
+
+    launch_description_content.append(
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(os.path.join(imu_launch_file_dir, 'imu_node.launch.py')),
+            launch_arguments={
+                'robot_number': robot_number
+            }.items(),
+        )
+    )
+
+    launch_description_content.append(
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(os.path.join(ekf_launch_file_dir, 'ekf_node.launch.py')),
+            launch_arguments={
+                'robot_number': robot_number
+            }.items(),
+        )
+    )
+   
     for num in range(int(robot_number.perform(context))-1):
         launch_description_content.append(
             Node(
