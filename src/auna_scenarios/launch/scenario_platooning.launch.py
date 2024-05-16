@@ -100,7 +100,7 @@ def generate_launch_description():
     # Launch Arguments
     robot_number_arg = DeclareLaunchArgument(
         'robot_number',
-        default_value='2',
+        default_value='1',
         description='Number of spawned robots'
     )
     world_name_arg = DeclareLaunchArgument(

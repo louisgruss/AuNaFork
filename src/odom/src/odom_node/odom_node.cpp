@@ -3,10 +3,9 @@
 
 OdomNode::OdomNode() : Node("odom_node")
 {
-    sub_odom_ = this->create_subscription<nav_msgs::msg::Odometry>("odom", 2, [this](const nav_msgs::msg::Odometry::SharedPtr msg){this->odom_callback(msg);});
+    sub_odom_ = this->create_subscription<nav_msgs::msg::Odometry>("odom", 10, [this](const nav_msgs::msg::Odometry::SharedPtr msg){this->odom_callback(msg);});
     sub_pose_stamped_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("localization_pose", 2, [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg){this->pose_callback(msg);});
     pub_pred_pose = this->create_publisher<geometry_msgs::msg::PoseStamped>("pred_pose", 10);
-    //timer_ = this->create_wall_timer(std::chrono::milliseconds(100), [this]() -> void { this->timer_callback(); });
 }
 
 void OdomNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
@@ -18,6 +17,8 @@ void OdomNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
     if(last_odom_msg_ == nullptr)
     {
         last_odom_msg_ = msg;
+        pose_x_ = this->pose_x;
+        pose_y_ = this->pose_y;
         pose_yaw_ = this->pose_yaw;
         delta = 0;
     }
@@ -27,9 +28,9 @@ void OdomNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
         auto dt = rclcpp::Time(msg->header.stamp) - rclcpp::Time(last_odom_msg_->header.stamp);
         delta = dt.seconds();
         last_odom_msg_ = msg;
-        pose_yaw_ += odom_yaw_rate_ * delta;
         pose_x_ += odom_velocity_ * cos(pose_yaw_) * delta;
         pose_y_ += odom_velocity_ * sin(pose_yaw_) * delta;
+        pose_yaw_ += odom_yaw_rate_ * delta;
     }
     geometry_msgs::msg::PoseStamped pred_pose;
     pred_pose.header.frame_id = "pred_pose_frame_";
@@ -42,16 +43,11 @@ void OdomNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
 
     pred_pose.pose.orientation.x = 0.0;
     pred_pose.pose.orientation.y = 0.0;
-    pred_pose.pose.orientation.z = this->pose_yaw_/2.0;
+    pred_pose.pose.orientation.z = sin(this->pose_yaw_/2.0);
     pred_pose.pose.orientation.w = 1.0;
 
     this->pub_pred_pose->publish(pred_pose);
 }
-
-/*void OdomNode::timer_callback()
-{
-
-}*/
 
 void OdomNode::pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {

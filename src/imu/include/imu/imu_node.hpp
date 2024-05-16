@@ -9,6 +9,10 @@
 #include "tf2/LinearMath/Matrix3x3.h"
 #include "tf2/LinearMath/Quaternion.h"
 
+#include <iostream>
+#include <fstream>
+
+
 class ImuNode : public rclcpp::Node
 {
     public:
@@ -18,7 +22,6 @@ class ImuNode : public rclcpp::Node
         rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr sub_imu_;
         rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr sub_pose_stamped_;
         rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pub_pred_pose_imu;
-        //rclcpp::TimerBase::SharedPtr timer_;
 
         //variables for imu_callback
         double imu_acceleration_magnitude;
@@ -52,5 +55,4 @@ class ImuNode : public rclcpp::Node
         //callback functions
         void imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg);
         void pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
-        //void timer_callback();
 };

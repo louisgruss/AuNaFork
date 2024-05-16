@@ -5,7 +5,6 @@ ImuNode::ImuNode() : Node("imu_node")
     sub_imu_ = this->create_subscription<sensor_msgs::msg::Imu>("imu", rclcpp::QoS(10).best_effort(), [this](const sensor_msgs::msg::Imu::SharedPtr msg){this->imu_callback(msg);});
     sub_pose_stamped_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("localization_pose", 2, [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg){this->pose_callback(msg);});
     pub_pred_pose_imu = this->create_publisher<geometry_msgs::msg::PoseStamped>("pred_pose_imu", 10);
-    //timer_ = this->create_wall_timer(std::chrono::milliseconds(100), [this]() -> void { this->timer_callback(); });
 }
 
 void ImuNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
@@ -51,8 +50,8 @@ void ImuNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
     pred_pose_imu.header.stamp = this->t;
     //pred_pose.child_frame_id = base_frame_;
 
-    pred_pose_imu.pose.position.x = pose_x; //this->velocity * cos(pose_yaw) * this->delta + pose_x_;
-    pred_pose_imu.pose.position.y = pose_y; //this->velocity * sin(pose_yaw) * this->delta + pose_y_;
+    pred_pose_imu.pose.position.x = pose_x;
+    pred_pose_imu.pose.position.y = pose_y;
     pred_pose_imu.pose.position.z = 0.0;
 
     pred_pose_imu.pose.orientation.x = 0.0;
@@ -62,25 +61,6 @@ void ImuNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
 
     this->pub_pred_pose_imu->publish(pred_pose_imu);
 }
-
-/*void ImuNode::timer_callback()
-{
-    geometry_msgs::msg::PoseStamped pred_pose_imu;    
-    pred_pose_imu.header.frame_id = "pred_pose_imu_frame_";
-    pred_pose_imu.header.stamp = this->t;
-    //pred_pose.child_frame_id = base_frame_;
-
-    pred_pose_imu.pose.position.x = this->pose_x; //this->velocity * cos(pose_yaw) * this->delta + pose_x_;
-    pred_pose_imu.pose.position.y = this->pose_y; //this->velocity * sin(pose_yaw) * this->delta + pose_y_;
-    pred_pose_imu.pose.position.z = this->delta;
-
-    pred_pose_imu.pose.orientation.x = 0.0;
-    pred_pose_imu.pose.orientation.y = 0.0;
-    pred_pose_imu.pose.orientation.z = this->theta;
-    pred_pose_imu.pose.orientation.w = 1.0;
-
-    this->pub_pred_pose_imu->publish(pred_pose_imu);
-}*/
 
 void ImuNode::pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {

@@ -12,6 +12,9 @@
 #include "tf2/LinearMath/Quaternion.h"
 #include <autodiff/forward/real.hpp>
 #include <autodiff/forward/real/eigen.hpp>
+#include <iostream>
+#include <fstream>
+
 
 namespace ekf{
 class EKFNode : public rclcpp::Node
@@ -20,13 +23,12 @@ class EKFNode : public rclcpp::Node
         EKFNode();
     private:
         //node variables
-        //rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr sub_pred_pose_;
-        //rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr sub_pred_pose_imu_;
         rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr sub_pose_stamped_;
         rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pub_ekf_;
         rclcpp::TimerBase::SharedPtr timer_;
         rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odom_;
         rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr sub_imu_;
+        rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pub_goal_pose_;        
 
         double pose_x;
         double pose_y;
@@ -44,6 +46,7 @@ class EKFNode : public rclcpp::Node
         double odom_theta;
         double odom_velocity_x;
         double odom_velocity_y;
+        double odom_velocity;
         double odom_yaw_rate;
 
         double imu_x;
@@ -51,14 +54,11 @@ class EKFNode : public rclcpp::Node
         double imu_yaw_rate;
         double imu_acceleration_x;
         double imu_acceleration_y;
+        double imu_acceleration;
+        double imu_theta;
 
-        double delta;
         double dt;
-        double imu_c;
-        double odom_c;
 
-        Eigen::VectorXd z_odom; 
-        Eigen::VectorXd z_imu;
         Eigen::VectorXd z_;
 
         builtin_interfaces::msg::Time t;
@@ -79,12 +79,10 @@ class EKFNode : public rclcpp::Node
         void Predict(double dt);
         void Update();
 
-        //callback functions
-        //void pred_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
-        //void pred_pose_imu_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);        
+        //callback functions       
         void pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
         void timer_callback();
         void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
-        void imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg);
+        void imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg);      
 };
 }
