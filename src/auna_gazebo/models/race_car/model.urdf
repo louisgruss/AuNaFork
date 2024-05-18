@@ -399,6 +399,7 @@
         <initial_orientation_as_reference>false</initial_orientation_as_reference>
       </plugin>
       <always_on>true</always_on>
+      <gaussiannoise>0.0</gaussiannoise>
       <update_rate>200</update_rate>
       <visualize>true</visualize>
     </sensor>

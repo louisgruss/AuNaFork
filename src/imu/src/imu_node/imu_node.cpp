@@ -33,14 +33,14 @@ void ImuNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
         auto dt = rclcpp::Time(msg->header.stamp) - rclcpp::Time(last_imu_msg_->header.stamp);
         delta = dt.seconds();
         pose_yaw += imu_yaw_rate_ * delta;
-        //velocity += imu_acceleration_magnitude * delta;
-        velocity += (imu_acceleration_magnitude + last_imu_acceleration_magnitude) * delta / 2;
+        //velocity += (imu_acceleration_magnitude + last_imu_acceleration_magnitude) * delta / 2;
         velocity_x += imu_acceleration_x * delta;
         velocity_y += imu_acceleration_y * delta;
-        //pose_x += velocity_x * delta;
-        //pose_y += velocity_y * delta;
-        pose_x += (velocity * cos(theta) + last_imu_velocity * cos(theta)) * delta / 2.0;
-        pose_y += (velocity * sin(theta) + last_imu_velocity * sin(theta)) * delta / 2.0;
+        velocity = sqrt(pow(velocity_x, 2) + pow(velocity_y, 2));
+        pose_x += velocity * cos(pose_yaw) * delta;
+        pose_y += velocity * sin(pose_yaw) * delta;
+        //pose_x += (velocity_x * cos(theta) + last_imu_velocity * cos(theta)) * delta / 2.0;
+        //pose_y += (velocity_x * sin(theta) + last_imu_velocity * sin(theta)) * delta / 2.0;
         last_imu_msg_ = msg;      
         last_imu_acceleration_magnitude = imu_acceleration_magnitude;
         last_imu_velocity = velocity;
@@ -56,7 +56,7 @@ void ImuNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
 
     pred_pose_imu.pose.orientation.x = 0.0;
     pred_pose_imu.pose.orientation.y = 0.0;
-    pred_pose_imu.pose.orientation.z = this->theta;
+    pred_pose_imu.pose.orientation.z = pose_yaw;
     pred_pose_imu.pose.orientation.w = 1.0;
 
     this->pub_pred_pose_imu->publish(pred_pose_imu);
