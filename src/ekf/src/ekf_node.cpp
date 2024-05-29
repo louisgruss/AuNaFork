@@ -31,7 +31,7 @@ void EKFNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
 {
     imu_acceleration_x = msg->linear_acceleration.x;
     //imu_acceleration_y = msg->linear_acceleration.y;
-    imu_acceleration = sqrt(pow(msg->linear_acceleration.x, 2) + pow(msg->linear_acceleration.y, 2)) * ((msg->linear_acceleration.x < 0) ? -1 : 1); 
+    imu_acceleration = sqrt(pow(msg->linear_acceleration.x, 2) + pow(msg->linear_acceleration.y, 2));
     imu_yaw_rate = msg->angular_velocity.z;
     imu_theta = msg->orientation.z;
 

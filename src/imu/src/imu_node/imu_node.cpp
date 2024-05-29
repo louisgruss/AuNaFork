@@ -39,8 +39,8 @@ void ImuNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
         velocity = sqrt(pow(velocity_x, 2) + pow(velocity_y, 2));
         pose_x += velocity * cos(pose_yaw) * delta;
         pose_y += velocity * sin(pose_yaw) * delta;
-        //pose_x += (velocity_x * cos(theta) + last_imu_velocity * cos(theta)) * delta / 2.0;
-        //pose_y += (velocity_x * sin(theta) + last_imu_velocity * sin(theta)) * delta / 2.0;
+        //pose_x += velocity_x * delta;
+        //pose_y += velocity_y * delta;
         last_imu_msg_ = msg;      
         last_imu_acceleration_magnitude = imu_acceleration_magnitude;
         last_imu_velocity = velocity;
