@@ -28,7 +28,9 @@ class EKFNode : public rclcpp::Node
         rclcpp::TimerBase::SharedPtr timer_;
         rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odom_;
         rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr sub_imu_;
-        rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pub_goal_pose_;        
+        rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pub_goal_pose_;  
+        rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr sub_pred_pose_;
+        rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr sub_pred_pose_imu_;      
 
         double pose_x;
         double pose_y;
@@ -43,7 +45,6 @@ class EKFNode : public rclcpp::Node
 
         double odom_x;
         double odom_y;
-        double odom_theta;
         double odom_velocity_x;
         double odom_velocity_y;
         double odom_velocity;
@@ -55,7 +56,6 @@ class EKFNode : public rclcpp::Node
         double imu_acceleration_x;
         double imu_acceleration_y;
         double imu_acceleration;
-        double imu_theta;
 
         double dt;
 
@@ -79,10 +79,27 @@ class EKFNode : public rclcpp::Node
         void Predict(double dt);
         void Update();
 
+        double ekfdifference;
+        double ekfthetadifference;
+        double imudifference;
+        double imuthetadifference;
+        double odomdifference;
+        double odomthetadifference;
+
+        double imu_pose_x;
+        double imu_pose_y;
+        double imu_theta;
+
+        double odom_pose_x;
+        double odom_pose_y;
+        double odom_theta;
+
         //callback functions       
         void pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
         void timer_callback();
         void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg);
-        void imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg);      
+        void imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg);  
+        void pred_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+        void pred_pose_imu_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
 };
 }

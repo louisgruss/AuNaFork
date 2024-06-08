@@ -10,7 +10,8 @@ OdomNode::OdomNode() : Node("odom_node")
 
 void OdomNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
 {
-    odom_velocity_ = sqrt(pow(msg->twist.twist.linear.x, 2) + pow(msg->twist.twist.linear.y, 2)) * ((msg->twist.twist.linear.x < 0) ? -1 : 1);
+    //odom_velocity_ = sqrt(pow(msg->twist.twist.linear.x, 2) + pow(msg->twist.twist.linear.y, 2)) * ((msg->twist.twist.linear.x < 0) ? -1 : 1);
+    odom_velocity_ = sqrt(pow(msg->twist.twist.linear.x, 2) + pow(msg->twist.twist.linear.y, 2));
     odom_yaw_rate_ = msg->twist.twist.angular.z;
     t = msg->header.stamp;
 
