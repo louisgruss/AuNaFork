@@ -51,6 +51,18 @@ void EKFNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
     imu_yaw_rate = msg->angular_velocity.z;
 
     Predict(0.005);
+    z_ << this->odom_velocity * cos(x_(6)), this->imu_acceleration * cos(x_(6)), this->odom_velocity * sin(x_(6)), this->imu_acceleration * sin(x_(6)), this->imu_yaw_rate;
+
+    if(!flag)
+    {
+        Update(this->H2_);
+        flag = true;
+    }
+    else
+    {
+        Update(this->H1_);
+        flag = false;
+    }
 }
 
 void EKFNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
@@ -60,6 +72,9 @@ void EKFNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
     odom_velocity_y = msg->twist.twist.linear.y;
     odom_velocity = sqrt(pow(msg->twist.twist.linear.x, 2) + pow(msg->twist.twist.linear.y, 2)) * ((msg->twist.twist.linear.x < 0) ? -1 : 1);
     odom_yaw_rate = msg->twist.twist.angular.z;
+
+    //z_ << this->odom_velocity * cos(x_(6)), this->imu_acceleration * cos(x_(6)), this->odom_velocity * sin(x_(6)), this->imu_acceleration * sin(x_(6)), this->imu_yaw_rate;
+    //Update();
 }
 
 void EKFNode::timer_callback()
@@ -70,9 +85,9 @@ void EKFNode::timer_callback()
     }
     else
     {
-        z_ << this->odom_velocity * cos(x_(6)), this->imu_acceleration * cos(x_(6)), this->odom_velocity * sin(x_(6)), this->imu_acceleration * sin(x_(6)), this->imu_yaw_rate;
-        
-        Update();
+        //z_ << this->odom_velocity * cos(x_(6)), this->imu_acceleration * cos(x_(6)), this->odom_velocity * sin(x_(6)), this->imu_acceleration * sin(x_(6)), this->imu_yaw_rate;
+
+        //Update();
 
         geometry_msgs::msg::PoseStamped ekf;    
         ekf.header.frame_id = "ekf_frame_";
@@ -84,13 +99,13 @@ void EKFNode::timer_callback()
 
         ekf.pose.orientation.x = 0.0;
         ekf.pose.orientation.y = 0.0;
-        ekf.pose.orientation.z = sin(x_(6)/2);
-        ekf.pose.orientation.w = 1.0;
+        ekf.pose.orientation.z = sin(x_(6)/2.0);
+        ekf.pose.orientation.w = cos(x_(6)/2.0);
 
         this->pub_ekf_->publish(ekf);
 
         ekfdifference = sqrt(pow((x_(0) - this->pose_x), 2) + pow((x_(3) - this->pose_y), 2));
-        ekfthetadifference = sqrt(pow((sin(x_(6)/2) - this->pose_yaw), 2));
+        ekfthetadifference = sqrt(pow((sin(x_(6)/2.0) - this->pose_yaw), 2));
 
         imudifference = sqrt(pow((this->imu_pose_x - this->pose_x), 2) + pow((this->imu_pose_y - this->pose_y), 2));
         imuthetadifference = sqrt(pow((this->imu_theta - this->pose_yaw), 2));
@@ -150,8 +165,10 @@ void EKFNode::Init()
     P_ = Eigen::MatrixXd(8,8);
     Q_ = Eigen::MatrixXd(8,8);
     F_ = Eigen::MatrixXd(8,8);
-    H_ = Eigen::MatrixXd(5,8);
+    H1_ = Eigen::MatrixXd(5,8);
+    H2_ = Eigen::MatrixXd(5,8);
     R_ = Eigen::MatrixXd(5,5);
+    S_ = Eigen::MatrixXd(5,5);
     y_ = Eigen::VectorXd(5);
     K_ = Eigen::MatrixXd(8,5);
     z_ = Eigen::VectorXd(5);
@@ -204,11 +221,20 @@ void EKFNode::Init()
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.05, 0.0,
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01;
 
-    H_ << 
+    H1_ << 
     0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 
     0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0;
+
+    H2_ << 
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
 
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0;
@@ -268,14 +294,14 @@ void EKFNode::Predict(double dt)
     P_ = J_ * P_ * J_.transpose() + Q_;
 }
 
-void EKFNode::Update()
+void EKFNode::Update(Eigen::MatrixXd Hj_)
 {
-    y_ = z_ - H_ * x_;
-    S_ = H_* P_ * H_.transpose() + R_;
-    K_ = P_ * H_.transpose() * S_.inverse();
+    y_ = z_ - Hj_ * x_;
+    S_ = Hj_* P_ * Hj_.transpose() + R_;
+    K_ = P_ * Hj_.transpose() * S_.inverse();
 
     x_ = x_ + K_* y_;
     //P_ = (I_ - K_ * H_) * P_ * (I_ - K_ * H_).transpose() + K_ * R_ * K_.transpose();
-    P_ = (I_ - K_ * H_) * P_;
+    P_ = (I_ - K_ * Hj_) * P_;
 }
 }

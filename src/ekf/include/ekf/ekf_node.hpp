@@ -68,16 +68,19 @@ class EKFNode : public rclcpp::Node
         Eigen::MatrixXd Q_;
         Eigen::MatrixXd F_;
         Eigen::MatrixXd R_;
-        Eigen::MatrixXd H_;
+        Eigen::MatrixXd H1_;
         Eigen::VectorXd y_;
         Eigen::MatrixXd S_;
         Eigen::MatrixXd K_;
         Eigen::MatrixXd I_;
         Eigen::MatrixXd J_;
 
+        Eigen::MatrixXd H2_;
+        bool flag;
+
         void Init();
         void Predict(double dt);
-        void Update();
+        void Update(Eigen::MatrixXd Hj_);
 
         double ekfdifference;
         double ekfthetadifference;

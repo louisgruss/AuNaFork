@@ -44,8 +44,9 @@ void OdomNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
 
     pred_pose.pose.orientation.x = 0.0;
     pred_pose.pose.orientation.y = 0.0;
-    pred_pose.pose.orientation.z = sin(this->pose_yaw_/2.0);
-    pred_pose.pose.orientation.w = 1.0;
+    //pred_pose.pose.orientation.z = sin(this->pose_yaw_/2.0);
+    pred_pose.pose.orientation.z = sin(pose_yaw_/2.0);
+    pred_pose.pose.orientation.w = cos(pose_yaw_/2.0);
 
     this->pub_pred_pose->publish(pred_pose);
 }
