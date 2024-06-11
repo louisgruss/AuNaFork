@@ -41,6 +41,21 @@ void EKFNode::pred_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPt
     odom_pose_x = msg->pose.position.x;
     odom_pose_y = msg->pose.position.y;
     odom_theta = msg->pose.orientation.z;
+
+}
+
+void EKFNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
+{
+    t = msg->header.stamp;    
+    odom_velocity_x = msg->twist.twist.linear.x;
+    odom_velocity_y = msg->twist.twist.linear.y;
+    odom_velocity = sqrt(pow(msg->twist.twist.linear.x, 2) + pow(msg->twist.twist.linear.y, 2)) * ((msg->twist.twist.linear.x < 0) ? -1 : 1);
+    odom_yaw_rate = msg->twist.twist.angular.z;
+
+    flag = true;
+
+    //z_ << this->odom_velocity * cos(x_(6)), this->imu_acceleration * cos(x_(6)), this->odom_velocity * sin(x_(6)), this->imu_acceleration * sin(x_(6)), this->imu_yaw_rate;
+    //Update();
 }
 
 void EKFNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
@@ -56,25 +71,13 @@ void EKFNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
     if(!flag)
     {
         Update(this->H2_);
-        flag = true;
+        //flag = true;
     }
     else
     {
         Update(this->H1_);
         flag = false;
     }
-}
-
-void EKFNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
-{
-    t = msg->header.stamp;    
-    odom_velocity_x = msg->twist.twist.linear.x;
-    odom_velocity_y = msg->twist.twist.linear.y;
-    odom_velocity = sqrt(pow(msg->twist.twist.linear.x, 2) + pow(msg->twist.twist.linear.y, 2)) * ((msg->twist.twist.linear.x < 0) ? -1 : 1);
-    odom_yaw_rate = msg->twist.twist.angular.z;
-
-    //z_ << this->odom_velocity * cos(x_(6)), this->imu_acceleration * cos(x_(6)), this->odom_velocity * sin(x_(6)), this->imu_acceleration * sin(x_(6)), this->imu_yaw_rate;
-    //Update();
 }
 
 void EKFNode::timer_callback()
