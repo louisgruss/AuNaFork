@@ -18,15 +18,7 @@ void EKFNode::pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg
 {
     pose_x = msg->pose.position.x;
     pose_y = msg->pose.position.y;
-
-    q_.setW(msg->pose.orientation.w);
-    q_.setX(msg->pose.orientation.x);
-    q_.setY(msg->pose.orientation.y);
-    q_.setZ(msg->pose.orientation.z);
-    q_.normalize();
-    m_.setRotation(q_);
-    m_.getRPY(roll_, pitch_, yaw_);
-    pose_yaw = yaw_;
+    pose_yaw = msg->pose.orientation.z;
 }
 
 void EKFNode::pred_pose_imu_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
@@ -108,13 +100,13 @@ void EKFNode::timer_callback()
         this->pub_ekf_->publish(ekf);
 
         ekfdifference = sqrt(pow((x_(0) - this->pose_x), 2) + pow((x_(3) - this->pose_y), 2));
-        ekfthetadifference = sqrt(pow((sin(x_(6)/2.0) - this->pose_yaw), 2));
+        ekfthetadifference = fabs(fmod(fmod(sin(x_(6)/2.0) - pose_yaw + 1, 2) + 2, 2) - 1);
 
         imudifference = sqrt(pow((this->imu_pose_x - this->pose_x), 2) + pow((this->imu_pose_y - this->pose_y), 2));
-        imuthetadifference = sqrt(pow((this->imu_theta - this->pose_yaw), 2));
+        imuthetadifference = fabs(fmod(fmod(imu_theta - pose_yaw + 1, 2) + 2, 2) - 1);
 
         odomdifference = sqrt(pow((this->odom_pose_x - this->pose_x), 2) + pow((this->odom_pose_y - this->pose_y), 2));
-        odomthetadifference = sqrt(pow((this->odom_theta - this->pose_yaw), 2));
+        odomthetadifference = fabs(fmod(fmod(odom_theta - pose_yaw + 1, 2) + 2, 2) - 1);
 
         std::ofstream ekfFile("/home/louis/ekfdifference.txt", std::ios::app);
         ekfFile << ekfdifference << std::endl;
@@ -128,15 +120,15 @@ void EKFNode::timer_callback()
         odomFile << odomdifference << std::endl;
         odomFile.close();
 
-        std::ofstream ekfThetaFile("/home/louis/ekfthetadifference.txt", std::ios::app);
+        std::ofstream ekfThetaFile("/home/louis/ekftheta.txt", std::ios::app);
         ekfThetaFile << ekfthetadifference << std::endl;
         ekfThetaFile.close();
 
-        std::ofstream imuThetaFile("/home/louis/imuthetadifference.txt", std::ios::app);
+        std::ofstream imuThetaFile("/home/louis/imutheta.txt", std::ios::app);
         imuThetaFile << imuthetadifference << std::endl;
         imuThetaFile.close();
 
-        std::ofstream odomThetaFile("/home/louis/odomthetadifference.txt", std::ios::app);
+        std::ofstream odomThetaFile("/home/louis/odomtheta.txt", std::ios::app);
         odomThetaFile << odomthetadifference << std::endl;
         odomThetaFile.close();
 
@@ -222,7 +214,7 @@ void EKFNode::Init()
     0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0,
 
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.05, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.01;
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5;
 
     H1_ << 
     0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -249,7 +241,7 @@ void EKFNode::Init()
     0.0, 0.0, 0.000000001, 0.0, 0.0,
     0.0, 0.0, 0.0, 0.000000001, 0.0,
 
-    0.0, 0.0, 0.0, 0.0, 0.000000001;
+    0.0, 0.0, 0.0, 0.0, 0.000000000001;
 
     is_init = true;
 }

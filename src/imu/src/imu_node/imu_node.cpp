@@ -11,15 +11,7 @@ void ImuNode::pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg
 {
     pose_x_ = msg->pose.position.x;
     pose_y_ = msg->pose.position.y;
-
-    q_.setW(msg->pose.orientation.w);
-    q_.setX(msg->pose.orientation.x);
-    q_.setY(msg->pose.orientation.y);
-    q_.setZ(msg->pose.orientation.z);
-    q_.normalize();
-    m_.setRotation(q_);
-    m_.getRPY(roll_, pitch_, yaw_);
-    pose_yaw_ = yaw_;
+    pose_yaw_ = msg->pose.orientation.z;
 }
 
 void ImuNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)

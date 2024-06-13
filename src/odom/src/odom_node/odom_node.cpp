@@ -55,13 +55,5 @@ void OdomNode::pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr ms
 {
     pose_x = msg->pose.position.x;
     pose_y = msg->pose.position.y;
-
-    q_.setW(msg->pose.orientation.w);
-    q_.setX(msg->pose.orientation.x);
-    q_.setY(msg->pose.orientation.y);
-    q_.setZ(msg->pose.orientation.z);
-    q_.normalize();
-    m_.setRotation(q_);
-    m_.getRPY(roll_, pitch_, yaw_);
-    pose_yaw = yaw_;
+    pose_yaw = msg->pose.orientation.z;
 }
