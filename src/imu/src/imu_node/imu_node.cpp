@@ -67,11 +67,11 @@ void ImuNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
     ImuDataFile << "y:" << position_y << std::endl;
     ImuDataFile.close(); 
 
-    std::ofstream imuFile("/home/louis/imudifference.txt", std::ios::app);
+    std::ofstream imuFile("/home/louis/imudifferenz.txt", std::ios::app);
     imuFile << IMU_Differenz << std::endl;
     imuFile.close();
 
-    std::ofstream imuThetaFile("/home/louis/imutheta.txt", std::ios::app);
+    std::ofstream imuThetaFile("/home/louis/imuthetadifferenz.txt", std::ios::app);
     imuThetaFile << IMU_Theta_Differenz << std::endl;
     imuThetaFile.close();
 }

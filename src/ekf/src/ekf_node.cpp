@@ -63,11 +63,11 @@ void EKFNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
         EKF_Differenz = sqrt(pow((x(0) - this->Ground_Truth_x), 2) + pow((x(3) - this->Ground_Truth_y), 2));
         EKF_Theta_Differenz = fabs(fmod(fmod(sin(x(6)/2.0) - this->Ground_Truth_Theta + 1, 2) + 2, 2) - 1);
 
-        std::ofstream ekfFile("/home/louis/ekfdifference.txt", std::ios::app);
+        std::ofstream ekfFile("/home/louis/ekfdifferenz.txt", std::ios::app);
         ekfFile << EKF_Differenz << std::endl;
         ekfFile.close();
 
-        std::ofstream ekfThetaFile("/home/louis/ekftheta.txt", std::ios::app);
+        std::ofstream ekfThetaFile("/home/louis/ekfthetadifferenz.txt", std::ios::app);
         ekfThetaFile << EKF_Theta_Differenz << std::endl;
         ekfThetaFile.close();
 

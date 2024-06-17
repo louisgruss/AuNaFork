@@ -55,11 +55,11 @@ void OdomNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
     OdomDataFile << "y:" << this->position_y << std::endl;
     OdomDataFile.close();  
 
-    std::ofstream odomFile("/home/louis/odomdifference.txt", std::ios::app);
+    std::ofstream odomFile("/home/louis/odomdifferenz.txt", std::ios::app);
     odomFile << Odom_Differenz << std::endl;
     odomFile.close();
 
-    std::ofstream odomThetaFile("/home/louis/odomtheta.txt", std::ios::app);
+    std::ofstream odomThetaFile("/home/louis/odomthetadifferenz.txt", std::ios::app);
     odomThetaFile << Odometrie_Theta_Differenz << std::endl;
     odomThetaFile.close();
 }
