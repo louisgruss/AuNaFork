@@ -4,183 +4,108 @@ namespace ekf{
 
 EKFNode::EKFNode() : Node("ekf_node")
 {
-    sub_pose_stamped_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("localization_pose", 2, [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg){this->pose_callback(msg);});
-    sub_odom_ = this->create_subscription<nav_msgs::msg::Odometry>("odom", 2, [this](const nav_msgs::msg::Odometry::SharedPtr msg){this->odom_callback(msg);});
-    sub_imu_ = this->create_subscription<sensor_msgs::msg::Imu>("imu", rclcpp::QoS(10).best_effort(), [this](const sensor_msgs::msg::Imu::SharedPtr msg){this->imu_callback(msg);});
-    pub_ekf_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("ekf", 10);
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(10), [this]() -> void { this->timer_callback(); });
-    pub_goal_pose_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("goal_pose", 10);
-    sub_pred_pose_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("pred_pose", 2, [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg){this->pred_pose_callback(msg);});
-    sub_pred_pose_imu_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("pred_pose_imu", 2, [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg){this->pred_pose_imu_callback(msg);});
+    Ground_Truth_Subscriber = this->create_subscription<geometry_msgs::msg::PoseStamped>("localization_pose", 2, [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg){this->pose_callback(msg);});
+    Odometrie_Subscriber = this->create_subscription<nav_msgs::msg::Odometry>("odom", 2, [this](const nav_msgs::msg::Odometry::SharedPtr msg){this->odom_callback(msg);});
+    IMU_Subscriber = this->create_subscription<sensor_msgs::msg::Imu>("imu", rclcpp::QoS(10).best_effort(), [this](const sensor_msgs::msg::Imu::SharedPtr msg){this->imu_callback(msg);});
+    EKF_Publisher = this->create_publisher<geometry_msgs::msg::PoseStamped>("ekf", 10);
 }
 
 void EKFNode::pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 {
-    pose_x = msg->pose.position.x;
-    pose_y = msg->pose.position.y;
-    pose_yaw = msg->pose.orientation.z;
-}
-
-void EKFNode::pred_pose_imu_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
-{
-    imu_pose_x = msg->pose.position.x;
-    imu_pose_y = msg->pose.position.y;
-    imu_theta = msg->pose.orientation.z;
-}
-
-void EKFNode::pred_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
-{
-    odom_pose_x = msg->pose.position.x;
-    odom_pose_y = msg->pose.position.y;
-    odom_theta = msg->pose.orientation.z;
-
+    Ground_Truth_x = msg->pose.position.x;
+    Ground_Truth_y = msg->pose.position.y;
+    Ground_Truth_Theta = msg->pose.orientation.z;
 }
 
 void EKFNode::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
 {
     t = msg->header.stamp;    
-    odom_velocity_x = msg->twist.twist.linear.x;
-    odom_velocity_y = msg->twist.twist.linear.y;
-    odom_velocity = sqrt(pow(msg->twist.twist.linear.x, 2) + pow(msg->twist.twist.linear.y, 2)) * ((msg->twist.twist.linear.x < 0) ? -1 : 1);
-    odom_yaw_rate = msg->twist.twist.angular.z;
+    Odom_Geschwindigkeit_x = msg->twist.twist.linear.x;
+    Odom_Geschwindigkeit_y = msg->twist.twist.linear.y;
+    Odom_Geschwindigkeit = sqrt(pow(msg->twist.twist.linear.x, 2) + pow(msg->twist.twist.linear.y, 2));
+    Odometrie_Drehwinkelgeschwindigkeit = msg->twist.twist.angular.z;
 
     flag = true;
-
-    //z_ << this->odom_velocity * cos(x_(6)), this->imu_acceleration * cos(x_(6)), this->odom_velocity * sin(x_(6)), this->imu_acceleration * sin(x_(6)), this->imu_yaw_rate;
-    //Update();
 }
 
 void EKFNode::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
 {
-    imu_acceleration_x = msg->linear_acceleration.x;
-    imu_acceleration_y = msg->linear_acceleration.y;
-    imu_acceleration = sqrt(pow(msg->linear_acceleration.x, 2) + pow(msg->linear_acceleration.y, 2));
-    imu_yaw_rate = msg->angular_velocity.z;
+    IMU_Beschleunigung_x = msg->linear_acceleration.x;
+    IMU_Beschleunigung_y = msg->linear_acceleration.y;
+    IMU_Beschleunigung = sqrt(pow(msg->linear_acceleration.x, 2) + pow(msg->linear_acceleration.y, 2));
+    IMU_Drehwinkelgeschwindigkeit = msg->angular_velocity.z;
 
-    Predict(0.005);
-    z_ << this->odom_velocity * cos(x_(6)), this->imu_acceleration * cos(x_(6)), this->odom_velocity * sin(x_(6)), this->imu_acceleration * sin(x_(6)), this->imu_yaw_rate;
+    Praediktion(0.005);
+    z << Odom_Geschwindigkeit * cos(x(6)), IMU_Beschleunigung * cos(x(6)), Odom_Geschwindigkeit * sin(x(6)), IMU_Beschleunigung * sin(x(6)), IMU_Drehwinkelgeschwindigkeit;
 
     if(!flag)
     {
-        Update(this->H2_);
-        //flag = true;
+        Korrektur(this->H2);
     }
     else
     {
-        Update(this->H1_);
-        flag = false;
-    }
-}
+        Korrektur(this->H1);
+        geometry_msgs::msg::PoseStamped EKF_Nachricht;    
+        EKF_Nachricht.header.frame_id = "EKF_Nachricht_frame";
+        EKF_Nachricht.header.stamp = this->t;
 
-void EKFNode::timer_callback()
-{
-    if(!is_init)
-    {
-        Init();
-    }
-    else
-    {
-        //z_ << this->odom_velocity * cos(x_(6)), this->imu_acceleration * cos(x_(6)), this->odom_velocity * sin(x_(6)), this->imu_acceleration * sin(x_(6)), this->imu_yaw_rate;
+        EKF_Nachricht.pose.position.x = x(0);
+        EKF_Nachricht.pose.position.y = x(3);
+        EKF_Nachricht.pose.position.z = 0.0;
 
-        //Update();
+        EKF_Nachricht.pose.orientation.x = 0.0;
+        EKF_Nachricht.pose.orientation.y = 0.0;
+        EKF_Nachricht.pose.orientation.z = sin(x(6)/2.0);
+        EKF_Nachricht.pose.orientation.w = cos(x(6)/2.0);
 
-        geometry_msgs::msg::PoseStamped ekf;    
-        ekf.header.frame_id = "ekf_frame_";
-        ekf.header.stamp = this->t;
+        this->EKF_Publisher->publish(EKF_Nachricht);
 
-        ekf.pose.position.x = x_(0);
-        ekf.pose.position.y = x_(3);
-        ekf.pose.position.z = 0.0;
-
-        ekf.pose.orientation.x = 0.0;
-        ekf.pose.orientation.y = 0.0;
-        ekf.pose.orientation.z = sin(x_(6)/2.0);
-        ekf.pose.orientation.w = cos(x_(6)/2.0);
-
-        this->pub_ekf_->publish(ekf);
-
-        ekfdifference = sqrt(pow((x_(0) - this->pose_x), 2) + pow((x_(3) - this->pose_y), 2));
-        ekfthetadifference = fabs(fmod(fmod(sin(x_(6)/2.0) - pose_yaw + 1, 2) + 2, 2) - 1);
-
-        imudifference = sqrt(pow((this->imu_pose_x - this->pose_x), 2) + pow((this->imu_pose_y - this->pose_y), 2));
-        imuthetadifference = fabs(fmod(fmod(imu_theta - pose_yaw + 1, 2) + 2, 2) - 1);
-
-        odomdifference = sqrt(pow((this->odom_pose_x - this->pose_x), 2) + pow((this->odom_pose_y - this->pose_y), 2));
-        odomthetadifference = fabs(fmod(fmod(odom_theta - pose_yaw + 1, 2) + 2, 2) - 1);
+        EKF_Differenz = sqrt(pow((x(0) - this->Ground_Truth_x), 2) + pow((x(3) - this->Ground_Truth_y), 2));
+        EKF_Theta_Differenz = fabs(fmod(fmod(sin(x(6)/2.0) - this->Ground_Truth_Theta + 1, 2) + 2, 2) - 1);
 
         std::ofstream ekfFile("/home/louis/ekfdifference.txt", std::ios::app);
-        ekfFile << ekfdifference << std::endl;
+        ekfFile << EKF_Differenz << std::endl;
         ekfFile.close();
 
-        std::ofstream imuFile("/home/louis/imudifference.txt", std::ios::app);
-        imuFile << imudifference << std::endl;
-        imuFile.close();
-
-        std::ofstream odomFile("/home/louis/odomdifference.txt", std::ios::app);
-        odomFile << odomdifference << std::endl;
-        odomFile.close();
-
         std::ofstream ekfThetaFile("/home/louis/ekftheta.txt", std::ios::app);
-        ekfThetaFile << ekfthetadifference << std::endl;
+        ekfThetaFile << EKF_Theta_Differenz << std::endl;
         ekfThetaFile.close();
 
-        std::ofstream imuThetaFile("/home/louis/imutheta.txt", std::ios::app);
-        imuThetaFile << imuthetadifference << std::endl;
-        imuThetaFile.close();
-
-        std::ofstream odomThetaFile("/home/louis/odomtheta.txt", std::ios::app);
-        odomThetaFile << odomthetadifference << std::endl;
-        odomThetaFile.close();
-
-        std::ofstream OdomDataFile("/home/louis/ODOMData.txt", std::ios::app);
-        OdomDataFile << "x:" << this->odom_pose_x << std::endl;
-        OdomDataFile << "y:" << this->odom_pose_y << std::endl;
-        OdomDataFile.close();   
-
-        std::ofstream ImuDataFile("/home/louis/IMUData.txt", std::ios::app);
-        ImuDataFile << "x:" << this->imu_pose_x << std::endl;
-        ImuDataFile << "y:" << this->imu_pose_y << std::endl;
-        ImuDataFile.close(); 
-
         std::ofstream EKFDataFile("/home/louis/EKFData.txt", std::ios::app);
-        EKFDataFile << "x:" << x_(0) << std::endl;
-        EKFDataFile << "y:" << x_(3) << std::endl;
+        EKFDataFile << "x:" << x(0) << std::endl;
+        EKFDataFile << "y:" << x(3) << std::endl;
         EKFDataFile.close();        
 
         std::ofstream RealDataFile("/home/louis/REALData.txt", std::ios::app);
-        RealDataFile << "x:" << this->pose_x << std::endl;
-        RealDataFile << "y:" << this->pose_y << std::endl;
-        RealDataFile.close();                             
+        RealDataFile << "x:" << this->Ground_Truth_x << std::endl;
+        RealDataFile << "y:" << this->Ground_Truth_y << std::endl;
+        RealDataFile.close();  
+
+        flag = false;
     }
 }
 
 void EKFNode::Init()
 {
-    x_ = Eigen::VectorXd(8);
-    P_ = Eigen::MatrixXd(8,8);
-    Q_ = Eigen::MatrixXd(8,8);
-    F_ = Eigen::MatrixXd(8,8);
-    H1_ = Eigen::MatrixXd(5,8);
-    H2_ = Eigen::MatrixXd(5,8);
-    R_ = Eigen::MatrixXd(5,5);
-    S_ = Eigen::MatrixXd(5,5);
-    y_ = Eigen::VectorXd(5);
-    K_ = Eigen::MatrixXd(8,5);
-    z_ = Eigen::VectorXd(5);
-    J_ = Eigen::MatrixXd(8,8);
-    I_ = Eigen::MatrixXd::Identity(8,8);
+    x = Eigen::VectorXd(8);
+    P = Eigen::MatrixXd(8,8);
+    Q = Eigen::MatrixXd(8,8);
+    F = Eigen::MatrixXd(8,8);
+    H1 = Eigen::MatrixXd(5,8);
+    H2 = Eigen::MatrixXd(5,8);
+    R = Eigen::MatrixXd(5,5);
+    S = Eigen::MatrixXd(5,5);
+    y = Eigen::VectorXd(5);
+    K = Eigen::MatrixXd(8,5);
+    z = Eigen::VectorXd(5);
+    J = Eigen::MatrixXd(8,8);
+    I = Eigen::MatrixXd::Identity(8,8);
 
-    dt = 0.01;
+    x << this->Ground_Truth_x, 0.0, 0.0, 
+    this->Ground_Truth_y, 0.0, 0.0, 
+    this->Ground_Truth_Theta, 0.0;
 
-    /*x_ << this->pose_x, this->odom_velocity * cos(this->pose_yaw), this->imu_acceleration * cos(this->pose_yaw), 
-    this->pose_y, this->odom_velocity * sin(this->pose_yaw), this->imu_acceleration * sin(this->pose_yaw), 
-    this->pose_yaw, (this->odom_yaw_rate + this->imu_yaw_rate) / 2;*/
-
-    x_ << this->pose_x, 0.0, 0.0, 
-    this->pose_y, 0.0, 0.0, 
-    this->pose_yaw, 0.0;
-
-    P_ << 
+    P << 
     1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -204,7 +129,7 @@ void EKFNode::Init()
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0,
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.005;*/
 
-    Q_ << 
+    Q << 
     0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.025, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -216,7 +141,7 @@ void EKFNode::Init()
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.05, 0.0,
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5;
 
-    H1_ << 
+    H1 << 
     0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 
@@ -225,7 +150,7 @@ void EKFNode::Init()
 
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0;
 
-    H2_ << 
+    H2 << 
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 
@@ -234,7 +159,7 @@ void EKFNode::Init()
 
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0;
 
-    R_ << 
+    R << 
     0.000000001, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.000000001, 0.0, 0.0, 0.0,
 
@@ -246,9 +171,13 @@ void EKFNode::Init()
     is_init = true;
 }
 
-void EKFNode::Predict(double dt)
+void EKFNode::Praediktion(double dt)
 {
-    F_ <<
+    if(!is_init)
+    {
+        Init();
+    }
+    F <<
     1.0, dt, 0.5 * pow(dt, 2), 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 1.0, dt, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -260,43 +189,31 @@ void EKFNode::Predict(double dt)
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, dt,
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0;
 
-    x_ = F_ * x_;
+    x = F * x;
 
-    /*J_ <<
-    1, cos(x_(6)) * dt, 0, 0, 0, 0, -(x_(1)) * sin(x_(6)) * dt, 0,
+    J <<
+    1, cos(x(6)) * dt, 0.5 * pow(dt, 2), 0, -sin(x(6)) * dt, 0, 0, 0,
     0, 1, dt, 0, 0, 0, 0, 0,
     0, 0, 1, 0, 0, 0, 0, 0,
 
-    0, sin(x_(6)) * dt, 0, 1, 0, 0, x_(1) * cos(x_(6)) * dt, 0,
-    0, 0, 0, 0, 1, dt, 0, 0,
-    0, 0, 0, 0, 0, 1, 0, 0,
-
-    0, 0, 0, 0, 0, 0, 1, dt,
-    0, 0, 0, 0, 0, 0, 0, 1;*/
-
-    J_ <<
-    1, cos(x_(6)) * dt, 0.5 * pow(dt, 2), 0, -sin(x_(6)) * dt, 0, 0, 0,
-    0, 1, dt, 0, 0, 0, 0, 0,
-    0, 0, 1, 0, 0, 0, 0, 0,
-
-    0, sin(x_(6)) * dt, 0, 1, cos(x_(6)) * dt, 0.5 * pow(dt, 2), 0, 0,
+    0, sin(x(6)) * dt, 0, 1, cos(x(6)) * dt, 0.5 * pow(dt, 2), 0, 0,
     0, 0, 0, 0, 1, dt, 0, 0,
     0, 0, 0, 0, 0, 1, 0, 0,
 
     0, 0, 0, 0, 0, 0, 1, dt,
     0, 0, 0, 0, 0, 0, 0, 1;
     
-    P_ = J_ * P_ * J_.transpose() + Q_;
+    P = J * P * J.transpose() + Q;
 }
 
-void EKFNode::Update(Eigen::MatrixXd Hj_)
+void EKFNode::Korrektur(Eigen::MatrixXd Hj)
 {
-    y_ = z_ - Hj_ * x_;
-    S_ = Hj_* P_ * Hj_.transpose() + R_;
-    K_ = P_ * Hj_.transpose() * S_.inverse();
+    y = z - Hj * x;
+    S = Hj * P * Hj.transpose() + R;
+    K = P * Hj.transpose() * S.inverse();
 
-    x_ = x_ + K_* y_;
-    //P_ = (I_ - K_ * H_) * P_ * (I_ - K_ * H_).transpose() + K_ * R_ * K_.transpose();
-    P_ = (I_ - K_ * Hj_) * P_;
+    x = x + K * y;
+    //P = (I - K * H) * P * (I - K * H).transpose() + K * R * K.transpose();
+    P = (I - K * Hj) * P;
 }
 }
